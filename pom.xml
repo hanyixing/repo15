@@ -179,6 +179,20 @@
       <version>1.1.2</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.jacoco</groupId>
+      <artifactId>org.jacoco.agent</artifactId>
+      <version>0.8.12</version>
+      <classifier>runtime</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jacoco</groupId>
+      <artifactId>org.jacoco.cli</artifactId>
+      <version>0.8.12</version>
+      <classifier>nodeps</classifier>
+      <scope>test</scope>
+    </dependency>
 
     <!-- System-scoped dependencies (your local libs) -->
     <dependency>

@@ -193,6 +193,7 @@ public class Tasks {
         println("libs                     download foreign jar files");
         println("setup-tomcat             set up tomcat");
         println("unit-tests               build the system for unit testing (KissUnitTest.jar)");
+        println("coverage-report          run tests with JaCoCo and generate HTML coverage report");
         println("");
         println("Options (any position):");
         println("  -dp PORT, --debug-port=PORT       JDWP debug port (default 9000)");
@@ -315,6 +316,40 @@ public class Tasks {
         writeToFile(workDir + "/META-INF/MANIFEST.MF", "Manifest-Version: 1.0\nMain-Class: org.junit.platform.console.ConsoleLauncher\nClass-Path: KissUnitTest.jar\n");
         createJar(workDir, jarName);
         rmTree(workDir);
+    }
+
+    /**
+     * Run unit tests with JaCoCo instrumentation and generate an HTML
+     * coverage report in work/coverage/.
+     */
+    public static void coverageReport() {
+        final String name = "KissUnitTest";
+        final String jarName = BUILDDIR + "/" + name + ".jar";
+        final String execFile = BUILDDIR + "/jacoco.exec";
+        final String reportDir = BUILDDIR + "/coverage";
+
+        // Build the unit test jar (includes compiled test classes)
+        unitTests();
+
+        // Run the tests with the JaCoCo java agent attached
+        rm(execFile);
+        runShell("java -javaagent:libs/org.jacoco.agent-0.8.12-runtime.jar=destfile="
+                + execFile
+                + ",includes=org.kissweb.* "
+                + "-jar " + jarName
+                + " --scan-classpath"
+                + " --details=summary");
+
+        // Generate the HTML report using the JaCoCo CLI
+        rmTree(reportDir);
+        mkdir(reportDir);
+        runShell("java -jar libs/org.jacoco.cli-0.8.12-nodeps.jar report " + execFile
+                + " --classfiles " + explodedDir + "/WEB-INF/classes"
+                + " --sourcefiles src/main/core"
+                + " --html " + reportDir
+                + " --name Kiss");
+
+        println("Coverage report created at " + reportDir + "/index.html");
     }
 
     /**
@@ -657,6 +692,16 @@ public class Tasks {
         dep.add(LIBS, "https://repo1.maven.org/maven2/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar");
         dep.add(LIBS, "https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console/1.11.0/junit-platform-console-1.11.0.jar");
         dep.add(LIBS, "https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.0/junit-platform-console-standalone-1.11.0.jar");
+
+        // JaCoCo coverage
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.agent/0.8.12/org.jacoco.agent-0.8.12-runtime.jar");
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/0.8.12/org.jacoco.cli-0.8.12-nodeps.jar");
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.core/0.8.12/org.jacoco.core-0.8.12.jar");
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.report/0.8.12/org.jacoco.report-0.8.12.jar");
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/ow2/asm/asm/9.7/asm-9.7.jar");
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/ow2/asm/asm-commons/9.7/asm-commons-9.7.jar");
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/ow2/asm/asm-tree/9.7/asm-tree-9.7.jar");
+
         return dep;
     }
 
