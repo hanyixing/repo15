@@ -41,6 +41,7 @@ public class Tasks {
     final static String groovyVer = "4.0.28";
     final static String postgresqlVer = "42.7.11";
     final static String tomcatVer = "11.0.12";
+    final static String jacocoVer = "0.8.12";
     final static String LIBS = "libs";  // compile time location
     final static ForeignDependencies foreignLibs = buildForeignDependencies();
     final static LocalDependencies localLibs = buildLocalDependencies();
@@ -193,6 +194,7 @@ public class Tasks {
         println("libs                     download foreign jar files");
         println("setup-tomcat             set up tomcat");
         println("unit-tests               build the system for unit testing (KissUnitTest.jar)");
+        println("coverage                 run all unit tests under JaCoCo and write a coverage report");
         println("");
         println("Options (any position):");
         println("  -dp PORT, --debug-port=PORT       JDWP debug port (default 9000)");
@@ -315,6 +317,99 @@ public class Tasks {
         writeToFile(workDir + "/META-INF/MANIFEST.MF", "Manifest-Version: 1.0\nMain-Class: org.junit.platform.console.ConsoleLauncher\nClass-Path: KissUnitTest.jar\n");
         createJar(workDir, jarName);
         rmTree(workDir);
+    }
+
+    /**
+     * Run the entire JUnit 5 test suite under the JaCoCo agent and emit a
+     * code-coverage report.
+     * <br><br>
+     * The framework's production code (<code>src/main/core</code>) and the
+     * tests (<code>src/test/core</code>) are compiled into dedicated output
+     * directories under <code>work/coverage</code>.  The suite is then run
+     * with the JaCoCo agent attached, and the resulting execution data is
+     * turned into HTML and XML reports.  Coverage is scoped to the
+     * production classes only; the test classes are excluded from the report.
+     * <br><br>
+     * Produces:
+     * <ul>
+     *   <li><code>work/coverage/html/index.html</code> — browsable HTML report</li>
+     *   <li><code>work/coverage/jacoco.xml</code> — XML report (for CI tools)</li>
+     *   <li><code>work/coverage/junit</code> — JUnit XML test results</li>
+     * </ul>
+     * Requires JDK 17+ on the PATH, the same requirement as the rest of the build.
+     */
+    public static void coverage() {
+        libs();   // make sure JaCoCo, JUnit, and the rest are downloaded
+
+        final String covDir      = BUILDDIR + "/coverage";
+        final String prodClasses = covDir + "/classes";
+        final String testClasses = covDir + "/test-classes";
+        final String execFile    = covDir + "/jacoco.exec";
+        final String htmlDir     = covDir + "/html";
+        final String xmlFile     = covDir + "/jacoco.xml";
+        final String reportsDir  = covDir + "/junit";
+
+        final String agentJar = LIBS + "/org.jacoco.agent-" + jacocoVer + "-runtime.jar";
+        final String cliJar   = LIBS + "/org.jacoco.cli-"   + jacocoVer + "-nodeps.jar";
+
+        mkdir(covDir);
+
+        // Compile production code, then the tests against it.  Separate output
+        // directories keep the report scoped to production classes and
+        // guarantee the instrumented bytecode matches the class files handed
+        // to the reporter.
+        buildJava("src/main/core", prodClasses, localLibs, foreignLibs, null);
+        copy("src/main/core/log4j2.xml", prodClasses);
+        buildJava("src/test/core", testClasses, localLibs, foreignLibs, prodClasses);
+
+        final String cp = libsClasspath(prodClasses, testClasses);
+
+        // Run every discovered test with the JaCoCo agent attached.  A failing
+        // test makes the console launcher exit non-zero, which aborts the build.
+        runWait(true, "java -javaagent:" + agentJar + "=destfile=" + execFile +
+                " -cp " + cp +
+                " org.junit.platform.console.ConsoleLauncher execute" +
+                " --scan-classpath=" + testClasses +
+                " --reports-dir=" + reportsDir);
+
+        // Convert the raw execution data into HTML + XML reports.
+        runWait(true, "java -jar " + cliJar + " report " + execFile +
+                " --classfiles " + prodClasses +
+                " --sourcefiles src/main/core" +
+                " --html " + htmlDir +
+                " --xml " + xmlFile);
+
+        println("");
+        println("Coverage HTML report: " + htmlDir + "/index.html");
+        println("Coverage XML report:  " + xmlFile);
+    }
+
+    /**
+     * Build a classpath string consisting of every <code>*.jar</code> in the
+     * {@link #LIBS} directory plus any extra directories passed in.  The
+     * platform path separator is used so the result is valid for both
+     * <code>java</code> and <code>javac</code> on the current OS.
+     *
+     * @param extraDirs directories (e.g. compiled class output) to prepend
+     * @return a classpath string
+     */
+    private static String libsClasspath(String... extraDirs) {
+        final String sep = isWindows ? ";" : ":";
+        final StringBuilder sb = new StringBuilder();
+        for (String d : extraDirs) {
+            if (sb.length() > 0)
+                sb.append(sep);
+            sb.append(d);
+        }
+        final java.io.File[] jars = new java.io.File(LIBS).listFiles();
+        if (jars != null)
+            for (java.io.File j : jars)
+                if (j.getName().endsWith(".jar")) {
+                    if (sb.length() > 0)
+                        sb.append(sep);
+                    sb.append(LIBS).append("/").append(j.getName());
+                }
+        return sb.toString();
     }
 
     /**
@@ -657,6 +752,12 @@ public class Tasks {
         dep.add(LIBS, "https://repo1.maven.org/maven2/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar");
         dep.add(LIBS, "https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console/1.11.0/junit-platform-console-1.11.0.jar");
         dep.add(LIBS, "https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.11.0/junit-platform-console-standalone-1.11.0.jar");
+
+        // JaCoCo (code coverage): the agent that instruments the test JVM and
+        // the standalone CLI ("nodeps") that turns the resulting execution
+        // data into HTML/XML reports.
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.agent/" + jacocoVer + "/org.jacoco.agent-" + jacocoVer + "-runtime.jar");
+        dep.add(LIBS, "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/" + jacocoVer + "/org.jacoco.cli-" + jacocoVer + "-nodeps.jar");
         return dep;
     }
 
