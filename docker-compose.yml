@@ -1,0 +1,39 @@
+# Local/production-like orchestration: PostgreSQL + the Kiss web app.
+# Copy .env.example to .env first, then:  docker compose up --build
+#
+# PostgreSQL is the example database (one of the five Kiss supports); no
+# application-specific names are used.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    # These env vars are mapped into application.ini by docker-entrypoint.sh.
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: ${POSTGRES_DB}
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+
+volumes:
+  db-data:

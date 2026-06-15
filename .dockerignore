@@ -1,0 +1,26 @@
+# Build context excludes.  NOTE: libs/ is intentionally NOT excluded ---
+# abcl.jar and the build's bootstrap jars (commons-compress/io/lang3) live
+# there and are required by ./bld.
+
+# Never copy real local env/secret files into the build context.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+.github
+.idea
+*.iml
+node_modules
+work
+tomcat
+target
+build
+dist
+*.war
+manual/*.pdf
+manual/Kiss.pdf
+manual/GroovyOverview.pdf
+*.log
+.DS_Store

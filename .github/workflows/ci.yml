@@ -1,0 +1,73 @@
+name: CI
+
+# Build gate + unit tests with JaCoCo coverage, using the project's own ./bld
+# build (not Maven --- pom.xml is only an IDE/dependency shim here).
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Make bld executable
+        run: chmod +x bld
+
+      # Build gate: the WAR must build (this also compiles core + precompiled).
+      - name: Build WAR
+        run: ./bld war
+
+      # Build the JUnit ConsoleLauncher fat-jar (work/KissUnitTest.jar).
+      - name: Build unit-test jar
+        run: ./bld unit-tests
+
+      # Pinned JaCoCo 0.8.12 (agent + CLI) from Maven Central.
+      - name: Download JaCoCo
+        run: |
+          curl -sSL -o jacocoagent.jar https://repo1.maven.org/maven2/org/jacoco/org.jacoco.agent/0.8.12/org.jacoco.agent-0.8.12-runtime.jar
+          curl -sSL -o jacococli.jar  https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/0.8.12/org.jacoco.cli-0.8.12-nodeps.jar
+
+      # Run the tests under the JaCoCo java-agent.  A test failure (or no tests
+      # found) makes ConsoleLauncher exit non-zero, which fails this step and
+      # therefore the job.
+      - name: Run unit tests with coverage
+        run: |
+          mkdir -p work/test-results
+          java -javaagent:jacocoagent.jar=destfile=work/jacoco.exec \
+            -jar work/KissUnitTest.jar \
+            --scan-classpath \
+            --reports-dir=work/test-results
+
+      # Coverage report.  classfiles = main classes only; ./bld war puts test
+      # classes under WEB-INF/test-classes, so they are excluded automatically.
+      - name: Generate coverage report
+        if: always()
+        run: |
+          java -jar jacococli.jar report work/jacoco.exec \
+            --classfiles work/exploded/WEB-INF/classes \
+            --sourcefiles src/main/core \
+            --sourcefiles src/main/precompiled \
+            --html work/jacoco/html \
+            --xml work/jacoco/jacoco.xml
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiss-ci-artifacts
+          path: |
+            work/Kiss.war
+            work/jacoco
+            work/test-results
+          if-no-files-found: warn

@@ -1,11 +1,41 @@
 {
-    "_comment": "This is used by electron to run a KISS application as a desktop application.",
+    "_comment": "Used by Electron to run a KISS app as a desktop application. PREREQUISITE: run './bld build' first to produce the backend (tomcat/ + work/exploded). A system or bundled JRE 17+ is required at launch because the shell spawns './bld start-backend'. 'npm run pack' / 'npm run dist' package this shell with electron-builder; bundling a self-contained JRE is out of scope.",
     "main": "start-electron.js",
     "scripts": {
-        "start": "electron ."
+        "start": "electron .",
+        "pack": "electron-builder --dir",
+        "dist": "electron-builder"
     },
     "devDependencies": {
         "docdash": "^2.0.2",
+        "electron": "^31.0.0",
+        "electron-builder": "^24.13.3",
         "jsdoc": "^4.0.5"
+    },
+    "build": {
+        "appId": "org.kissweb.app",
+        "directories": {
+            "output": "work/electron-dist"
+        },
+        "files": [
+            "start-electron.js",
+            "package.json"
+        ],
+        "extraResources": [
+            "bld",
+            "libs",
+            "work",
+            "tomcat",
+            "src"
+        ],
+        "win": {
+            "target": "nsis"
+        },
+        "mac": {
+            "target": "dmg"
+        },
+        "linux": {
+            "target": "AppImage"
+        }
     }
 }

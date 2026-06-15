@@ -166,3 +166,13 @@ src/main/frontend/lib/jquery*
 
 /build/
 manual/asciidoc/
+
+# Containerization / deploy (added for build & CI/CD work)
+# ------------------------------------------------------
+# Local compose secrets --- never commit (.env.example stays tracked).
+.env
+# Per-environment local overrides (e.g. config/application-prod.local.ini).
+# The committed config/application-{dev,test,prod}.ini are NOT ignored.
+config/application-*.local.ini
+# Electron packaging output (also under 'work' above; listed for clarity).
+work/electron-dist
