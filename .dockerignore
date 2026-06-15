@@ -1,0 +1,39 @@
+# ==============================================================================
+# .dockerignore - Exclude files from Docker build context
+# ==============================================================================
+
+# Version control
+.git
+.gitignore
+
+# Build artifacts
+work/
+build/
+target/
+
+# Embedded Tomcat (not needed inside Docker)
+tomcat/
+
+# IDE and editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Gradle (Kiss uses bld, not Gradle)
+.gradle/
+
+# Node modules (if any frontend tooling exists)
+node_modules/
+
+# Documentation build output
+manual/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Environment / secrets files
+.env*

@@ -1,11 +1,24 @@
 {
     "_comment": "This is used by electron to run a KISS application as a desktop application.",
+    "name": "kiss-desktop",
+    "version": "1.0.0",
+    "description": "Kiss Framework Desktop Application",
     "main": "start-electron.js",
     "scripts": {
-        "start": "electron ."
+        "start": "electron .",
+        "build:electron": "electron-builder --config electron-builder.yml",
+        "build:win": "electron-builder --win --config electron-builder.yml",
+        "build:mac": "electron-builder --mac --config electron-builder.yml",
+        "build:linux": "electron-builder --linux --config electron-builder.yml",
+        "build:all": "electron-builder -mwl --config electron-builder.yml"
     },
     "devDependencies": {
         "docdash": "^2.0.2",
-        "jsdoc": "^4.0.5"
+        "jsdoc": "^4.0.5",
+        "electron": "^33.0.0",
+        "electron-builder": "^25.1.8"
+    },
+    "build": {
+        "extends": "electron-builder.yml"
     }
 }

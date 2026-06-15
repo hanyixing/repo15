@@ -1,0 +1,48 @@
+# ==============================================================================
+# docker-compose.prod.yml - Production overrides
+# ==============================================================================
+#
+# Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# What changes vs. default compose:
+#   - Both services set restart: always for automatic recovery.
+#   - CPU and memory resource limits are applied to the web container.
+#   - Source-code volume mounts are removed (the image is self-contained).
+#   - KISS_ENV is set to "production".
+#
+# ==============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL
+  # --------------------------------------------------------------------------
+  db:
+    restart: always
+
+  # --------------------------------------------------------------------------
+  # Kiss Application
+  # --------------------------------------------------------------------------
+  web:
+    restart: always
+    environment:
+      KISS_ENV: production
+      DatabaseType: postgresql
+      DatabaseHost: db
+      DatabasePort: 5432
+      DatabaseName: kissdb
+      DatabaseUser: kiss
+      DatabasePassword: ${DB_PASSWORD}
+      JAVA_OPTS: "-Xms256m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
+    # No source-code volume mounts in production — everything is baked into
+    # the image by the Dockerfile build stage.
+    volumes:
+      - ./config/application-prod.ini:/app/application.ini:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M

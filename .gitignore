@@ -166,3 +166,34 @@ src/main/frontend/lib/jquery*
 
 /build/
 manual/asciidoc/
+
+# Environment-specific configuration overrides
+# (only the template configs in config/ are tracked;
+#  the active application.ini in src/main/backend/ is NOT tracked)
+config/application-prod.ini
+
+# Docker environment file (may contain secrets)
+.env
+.env.*
+!.env.example
+
+# Docker volumes and runtime data
+docker-volumes/
+
+# Electron build output
+dist/electron/
+build-resources/
+
+# Node modules (Electron dev dependencies)
+node_modules/
+
+# JaCoCo coverage reports
+target/site/jacoco/
+jacoco.exec
+jacoco-it.exec
+
+# Sensitive configuration files that should never be committed
+src/main/backend/application-prod.ini
+src/main/backend/application-local.ini
+*.secret
+*.credentials

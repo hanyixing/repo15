@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Job 1: Build, test, and package using the native bld system
+  # ─────────────────────────────────────────────────────────────
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            libs/
+            work/
+          key: ${{ runner.os }}-kiss-${{ hashFiles('libs/**/*.jar') }}
+          restore-keys: |
+            ${{ runner.os }}-kiss-
+
+      - name: Make bld executable
+        run: chmod +x bld
+
+      - name: Build project
+        run: ./bld build
+
+      - name: Run tests
+        run: ./bld test
+
+      - name: Build WAR
+        run: ./bld war
+
+      - name: Upload WAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiss-app-war
+          path: work/app.war
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 2: Validate Docker image (push to main/master only)
+  # ─────────────────────────────────────────────────────────────
+  docker-build:
+    needs: build-and-test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (validate only)
+        run: docker build -t kiss-app:ci-test .
+
+      - name: Verify image was created
+        run: |
+          if docker image inspect kiss-app:ci-test >/dev/null 2>&1; then
+            echo "Docker image kiss-app:ci-test built successfully."
+            docker image ls kiss-app:ci-test
+          else
+            echo "::error::Docker image kiss-app:ci-test was not created."
+            exit 1
+          fi

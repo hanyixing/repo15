@@ -1,0 +1,49 @@
+# ==============================================================================
+# docker-compose.dev.yml - Development overrides
+# ==============================================================================
+#
+# Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# What changes vs. default compose:
+#   - Source code is mounted as volumes so backend hot-reload works without
+#     rebuilding the image.
+#   - PostgreSQL port 5432 is exposed to the host for local tooling (pgAdmin,
+#     DBeaver, psql, etc.).
+#   - KISS_ENV is set to "development".
+#
+# ==============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL - expose port to host
+  # --------------------------------------------------------------------------
+  db:
+    ports:
+      - "5432:5432"
+
+  # --------------------------------------------------------------------------
+  # Kiss Application - mount source for hot reload
+  # --------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      KISS_ENV: development
+      DatabaseType: postgresql
+      DatabaseHost: db
+      DatabasePort: 5432
+      DatabaseName: kissdb
+      DatabaseUser: kiss
+      DatabasePassword: ${DB_PASSWORD:-kiss_secret}
+      JAVA_OPTS: "-Xms256m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
+    volumes:
+      # Mount application source for hot-reload of backend services
+      - ./src/main/backend:/build/src/main/backend
+      # Mount frontend so browser reload picks up changes immediately
+      - ./src/main/frontend:/build/src/main/frontend
+      # Allow runtime config override
+      - ./config/application-dev.ini:/app/application.ini:ro
+    ports:
+      - "8080:8080"
